@@ -3,7 +3,7 @@ package DBIx::Class::RandomColumns;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use base 'DBIx::Class';
 
@@ -21,15 +21,14 @@ DBIx::Class::RandomColumns - Implicit random columns
   __PACKAGE__->load_components(qw/RandomColumns Core/);
   __PACKAGE__->table('table');
   __PACKAGE__->add_columns(qw(id foo bar baz));
-  __PACKAGE__->random_columns('id', bar => {length => 10});
+  __PACKAGE__->random_columns('id', bar => {size => 10});
 
 =head1 DESCRIPTION
 
 This L<DBIx::Class|DBIx::Class> component is a replacement for
 L<DBIx::Class::RandomStringColumns|DBIx::Class::RandomStringColumns>
 which is broken at least with L<DBIx::Class|DBIx::Class> E<gt>= 0.05.
-Since the author doesn't reply to emails for two weeks now I decided to
-write this module.
+Since the author doesn't reply to emails I decided to write this module.
 
 This component resembles the behaviour of
 L<Class::DBI::Plugin::RandomStringColumn|Class::DBI::Plugin::RandomStringColumn>,
@@ -66,7 +65,7 @@ building the random key. The default set is C<['0'..'9', 'a'..'z']>.
 
 A reference to a subroutine that returns the random string. Usefull if random
 data must have a certain form. For example to build a valid license plate
-number for Berlin/Germany, the subroutine would (basically) look like:
+number for cars in Berlin/Germany, the subroutine would (basically) look like:
 
   sub {
     my @a = ('A'..'Z', '');
@@ -75,18 +74,19 @@ number for Berlin/Germany, the subroutine would (basically) look like:
 
 =back
 
-=item length
+=item size
 
-Length of the random string to create. Defaults to 32. This is ignored if
-C<set> is a code reference.
+Length of the random string to create. Defaults to the size of the column or - if this
+cannot be determined for whatever reason - to 32. This is ignored if C<set> is a code
+reference.
 
 =item check
 
 Search table before insert until generated column value is not found.
 Defaults to false and must be set to a true value to activate.
-Provided Perl rand() function has sufficient entropy this lookup is not
-really usefull in combination with the default set and length, which
-gives 36^32 possible combinations.
+Provided Perl's rand() function has sufficient entropy this lookup is only
+usefull for short fields, because with the default set there are
+C<36^field-size> possible combinations.
 
 =back
 
@@ -103,7 +103,7 @@ sub random_columns {
 	# push auto column settings onto $class->random_auto_columns.
 	# 0: Column name
 	# 1: set
-	# 2: length
+	# 2: size
 	# 3: check on/off
 	$set = $opt->{set};
         push @{$class->random_auto_columns}, [
@@ -111,7 +111,7 @@ sub random_columns {
 	    defined($set) ?
 		ref($set) ? $set : [ split //, $set ] :
 		['0'..'9', 'a'..'z'],
-            $opt->{length} || 32,
+            $opt->{size},
             $opt->{check}
         ];
     }
@@ -128,8 +128,10 @@ sub insert {
 
 sub _get_random_column_id {
     my $self   = shift;
-    my ($name, $set, $length, $check) = @{shift()};
+    my ($name, $set, $size, $check) = @{shift()};
     my $id;
+
+    $size ||= $self->column_info($name)->{size} || 32;
 
     my $tries = 100;
     do { # check uniqueness if check => 1 for this column
@@ -139,7 +141,7 @@ sub _get_random_column_id {
 	else {
 	    $id = '';
 	    # random id is as good as Perl's rand()
-	    $id .= $set->[int(rand(@$set))] for (1 .. $length);
+	    $id .= $set->[int(rand(@$set))] for (1 .. $size);
 	}
     } while ($check and $tries-- and $self->result_source->resultset->search({$name => $id})->count);
 

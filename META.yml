@@ -1,6 +1,6 @@
 ---
 name: DBIx-Class-RandomColumns
-version: 0.01
+version: 0.02
 author: ~
 abstract: Implicit random columns
 license: perl
@@ -14,5 +14,5 @@ build_requires:
 provides:
   DBIx::Class::RandomColumns:
     file: lib/DBIx/Class/RandomColumns.pm
-    version: 0.01
+    version: 0.02
 generated_by: Module::Build version 0.261

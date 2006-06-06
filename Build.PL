@@ -9,7 +9,7 @@ Module::Build->new(
     author => 'Bernhard Graf <perl-dbic-randomcolumns@movingtarget.de>',
     license => 'perl',
     requires => {
-	'DBIx::Class' => 0.05,
+	'DBIx::Class' => 0.06,
     },
     build_requires => {
 	'Test::More' => 0,

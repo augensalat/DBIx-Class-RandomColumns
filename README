@@ -1,4 +1,4 @@
-DBIx::Class::RandomColumns version 0.01
+DBIx::Class::RandomColumns version 0.02
 =======================================
 
 Create random data for columns in a table on SQL INSERT.

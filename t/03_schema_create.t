@@ -22,7 +22,7 @@ BEGIN {
     __PACKAGE__->random_columns(
 	'session_id',
     	'u_rand_id',
-	'rand_id' => {length => 3, set => [0..9], check => 1},
+	'rand_id' => {size => 3, set => [0..9], check => 1},
 	'rand_id2',
 	'rand_pat' => {set => sub {
 		my @a = ('A'..'Z', '');
@@ -52,7 +52,7 @@ CREATE TABLE foo (
     u_rand_id  VARCHAR(32),
     number     INT,
     rand_id    VARCHAR(32),
-    rand_id2   VARCHAR(32),
+    rand_id2   VARCHAR(20),
     rand_pat   VARCHAR(11)
 )
 
@@ -63,7 +63,7 @@ is($foo->number, 3, 'can set number');
 is($foo->u_rand_id, 'foo', 'no rewrite if set');
 like($foo->session_id, qr/^[a-z0-9]{32}$/, 'set random string column');
 like($foo->rand_id,  qr/^[0-9]{3}$/, 'set random string column at rand_id');
-like($foo->rand_id2, qr/^[a-z0-9]{32}$/, 'set random string column at rand_id2');
+like($foo->rand_id2, qr/^[a-z0-9]{20}$/, 'set random string column at rand_id2');
 like($foo->rand_pat, qr/^B-[A-Z]{1,2} \d{1,4}$/, 'set random pattern string column at rand_pat');
 
 # vim: set ft=perl :
