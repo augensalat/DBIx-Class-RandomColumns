@@ -1,0 +1,36 @@
+DBIx::Class::RandomColumns version 0.01
+=======================================
+
+Create random data for columns in a table on SQL INSERT.
+
+INSTALLATION
+
+To install this module type the following:
+
+  perl Build.PL
+  ./Build
+  ./Build test
+  ./Build install
+
+or the traditional way:
+
+  perl Makefile.PL
+  make
+  make test
+  make install
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+DBIx::Class
+
+Test::More, File::Temp and DBD::SQLite for testing
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2006 Bernhard Graf <perl-dbic-randomcolumns@movingtarget.de>
+
+This library is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
