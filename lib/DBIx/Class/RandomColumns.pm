@@ -3,7 +3,7 @@ package DBIx::Class::RandomColumns;
 use strict;
 use warnings;
 
-our $VERSION = '0.003000';
+our $VERSION = '0.003001';
 
 use DBIx::Class 0.08009;
 
@@ -175,7 +175,7 @@ sub random_columns {
 =head2 insert
 
 Hooks into L<DBIx::Class::Row::insert()|DBIx::Class::Row/insert> to create
-a random value for each L<random column/random_columns> that is not
+a random value for each L<random column|/random_columns> that is not
 defined.
 
 =cut
@@ -239,7 +239,7 @@ __END__
 
 Instead of calling L</random_columns> it is also possible to specify option
 C<is_random> in L<add_columns|DBIx::Class::ResultSource/add_columns>.
-The value is either a true scalar, indicating that this in fact is a
+The value is either a true scalar value, indicating that this in fact is a
 random column, or a hash reference, that has the same meaning as described
 under L</random_columns>.
 
