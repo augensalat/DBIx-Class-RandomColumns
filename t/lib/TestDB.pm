@@ -8,26 +8,24 @@ use base 'DBIx::Class::Schema';
 my $db = Path::Class::file(qw/t var test.db/);
 
 sub init_schema {
-  my $self = shift;
-  $db->dir->rmtree if -e $db->dir;
+    my $self = shift;
 
-  $db->dir->mkpath;
+    $db->dir->rmtree if -e $db->dir;
+    $db->dir->mkpath;
 
-  my $dsn = 'dbi:SQLite:' . $db;
-  my $schema = $self->connect($dsn);
+    my $schema = $self->connect('dbi:SQLite:' . $db);
+
     $schema->storage->on_connect_do([
         'PRAGMA synchronous = OFF',
         'PRAGMA temp_store = MEMORY'
     ]);
+    $schema->deploy;
 
-  $schema->deploy;
-
-  return $schema;
-
+    return $schema;
 }
 
 sub DESTROY {
-  $db->dir->rmtree if -e $db->dir;
+    $db->dir->rmtree if -e $db->dir;
 }
 
 __PACKAGE__->load_classes;

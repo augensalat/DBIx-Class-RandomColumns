@@ -3,45 +3,53 @@ package DBIx::Class::RandomColumns;
 use strict;
 use warnings;
 
-our $VERSION = '0.003001';
+our $VERSION = '0.004000';
 
 use DBIx::Class 0.08009;
 
-use base qw/DBIx::Class/;
-__PACKAGE__->mk_group_accessors(
-    inherited => qw/_random_columns max_dup_checks default_field_size/
-);
+use parent qw/DBIx::Class/;
 
-use constant TEXT_SET => ['0'..'9', 'a'..'z'];
-use constant NUM_SET => ['0'..'9'];
+__PACKAGE__->mk_group_accessors(
+    inherited => qw(
+        _random_columns
+        max_dup_checks
+        default_field_size
+        default_text_set
+        default_int_max
+        default_int_min
+    )
+);
 
 __PACKAGE__->max_dup_checks(100);
 __PACKAGE__->default_field_size(32);
+__PACKAGE__->default_text_set(['0'..'9', 'a'..'z']);
+__PACKAGE__->default_int_max(2*31-1);
+__PACKAGE__->default_int_min(0);
 
 =head1 NAME
 
-DBIx::Class::RandomColumns - Implicit random columns
+DBIx::Class::RandomColumns - Implicit Random Columns
 
 =head1 SYNOPSIS
 
-  package My::Schema::Utz;
-  use base 'DBIx::Class';
+  package My::Schema::Result::Utz;
+  use parent 'DBIx::Class::Core';
 
-  __PACKAGE__->load_components(qw/RandomColumns Core/);
+  __PACKAGE__->load_components(qw/RandomColumns/);
   __PACKAGE__->table('utz');
   __PACKAGE__->add_columns(qw(id foo bar baz));
   __PACKAGE__->random_columns('id', bar => {size => 10});
 
-  package My::Schema::Gnarf;
-  use base 'DBIx::Class';
+  package My::Schema::Result::Gnarf;
+  use parent 'DBIx::Class::Core';
 
-  __PACKAGE__->load_components(qw/RandomColumns Core/);
+  __PACKAGE__->load_components(qw/RandomColumns/);
   __PACKAGE__->table('gnarf');
   __PACKAGE__->add_columns(
     id => {
-      datatype => 'varchar',
-      is_random => 1,
-      size => 20,
+      datatype => 'integer',
+      extra => {unsigned => 1},
+      is_random => {max => 2**32-1, min => 0}
     },
     foo => {
       datatype => 'int',
@@ -60,16 +68,15 @@ DBIx::Class::RandomColumns - Implicit random columns
 
 =head1 VERSION
 
-This is version 0.003000
+This is version 0.004000
 
 =head1 DESCRIPTION
 
 This DBIx::Class component makes columns implicitly create random values.
 
 The main reason why this module exists is to generate unpredictable primary
-keys to add some additional security to web applications.
-
-Note that the component needs to be loaded before Core.
+keys to add some additional security to web applications.  Most forms of
+char and integer field types are supported.
 
 =head1 METHODS
 
@@ -83,12 +90,12 @@ sub add_columns {
     $class->next::method(@_);
 
     for my $column ($class->columns) {
-	$info = $class->column_info($column);
-	$opt = $info->{is_random}
-	    or next;
-	push @random_columns, $column;
-	push @random_columns, $opt
-	    if ref($opt) eq 'HASH';
+        $info = $class->column_info($column);
+        $opt = $info->{is_random}
+            or next;
+        push @random_columns, $column;
+        push @random_columns, $opt
+            if ref($opt) eq 'HASH';
     }
     $class->random_columns(@random_columns);
 
@@ -99,27 +106,40 @@ sub add_columns {
 
   __PACKAGE__->random_columns(@column_names);
   __PACKAGE__->random_columns(name1 => \%options1, name2 => \%options2);
+  __PACKAGE__->random_columns(name1, name2 => \%options2);
   $random_columns = __PACKAGE__->random_columns;
 
 Define or query fields that get random strings at creation. Each column
-name can be followed by a hash reference containing options.
+name may be followed by a hash reference containing options. In case no
+explicit options are given, the method tries to find reasonable values.
 
 Valid options are:
 
-=over 3
+=over
 
-=item set
+=item C<max>:
+
+Maximum number for integer fields. Defaults to C<2**31-1>. Must be an
+integer number, that is greater than C<min> and should be positive.
+
+=item C<min>:
+
+Minimum number for integer fields. Defaults to C<0>. Must be an integer
+number, that is lower than C<max> and can be negative unless the
+corresponding field is not an unsigned integer.
+
+=item C<set>:
 
 A string or an array reference that contains the set of characters to use
-for building the random key. The default set is C<['0'..'9', 'a'..'z']>
-for character type fields and C<['0'..'9']> for number type fields.
+for building a random content for string fields. The default set is
+C<['0'..'9', 'a'..'z']>.
 
-=item size
+=item C<size>:
 
 Length of the random string to create. Defaults to the size of the column or - if this
 cannot be determined for whatever reason - to 32.
 
-=item check
+=item C<check>:
 
 Search table before insert until generated column value is not found.
 Defaults to false and must be set to a true value to activate.
@@ -129,8 +149,8 @@ C<36^field-size> possible combinations.
 
 =back
 
-Returns a has reference, with column names of the random columns as keys and
-array references as values, that contain C<set>, C<size> and C<check>.
+Returns a hash reference, with column names of the random columns as keys and
+hash references as values, that contain the random column settings.
 
 =cut
 
@@ -139,33 +159,58 @@ sub random_columns {
     my $random_auto_columns = $class->_random_columns || {};
 
     # act as read accessor when no arguments are given
-    return $random_auto_columns
-	unless @_;
+    return $random_auto_columns unless @_;
 
-    my ($col, $info, $opt, $set, $data_type);
+    my ($col, $info, $opt);
 
     # loop over argument list
     while ($col = shift @_) {
-	$info = $class->column_info($col);
+        $info = $class->column_info($col);
         $class->throw_exception(qq{column "$col" doesn't exist})
-	    unless $class->has_column($col);
+            unless $class->has_column($col);
         $opt = ref $_[0] eq 'HASH' ? shift(@_) : {};
 
-	# set auto column settings of current column
-	# as an array reference in $class->_random_columns,
-	# the array is organized as follows:
-	# 0: set
-	# 1: size
-	# 2: check on/off
-	$random_auto_columns->{$col} = [
-	    defined($set = $opt->{set}) ?
-		ref($set) ? $set : [ split //, $set ] :
-		lc($info->{data_type} || '') =~
-			/^(?:var(?:char2?|binary)|(?:char(?:acter(?:\s+varying)?)?)|binary|(?:tiny|medium|long)?blob|(?:tiny|medium|long)?text|clob|comment|bytea)$/ ?
-		    TEXT_SET : NUM_SET,
-            $opt->{size} || $info->{size} || $class->default_field_size,
-            $opt->{check}
-        ];
+        # set auto column settings of current column
+        # as a hash reference in $class->_random_columns;
+        # the hash may contain:
+        # min: minimum value for integer fields
+        # max: maximum value for integer fields
+        # set: set of character to build a random string
+        # size: size of string fields
+        # check: true=on / false=off
+        my %conf = (check => $opt->{check});
+
+        if (defined $opt->{max}) {
+            $conf{max} = $opt->{max};
+            $conf{min} = $opt->{min} || 0;
+        }
+        elsif (
+            lc($info->{data_type} || '') =~ /^
+                (?:
+                    var(?:char2?|binary) |
+                    (?:char(?:acter(?:\s+varying)?)?) |
+                    binary |
+                    (?:tiny|medium|long)?blob |
+                    (?:tiny|medium|long)?text |
+                    clob |
+                    comment |
+                    bytea
+                )
+            $/x
+        ) {
+            $conf{set} = defined($opt->{set}) ?
+                             ref($opt->{set}) ?
+                                 $opt->{set} : [split //, $opt->{set}] :
+                                    $class->default_text_set;
+            $conf{size} = $opt->{size} ||
+                          $info->{size} ||
+                          $class->default_field_size;
+        }
+        else {
+            $conf{max} = 2**31-1;
+            $conf{min} = 0;
+        }
+        $random_auto_columns->{$col} = \%conf;
     }
 
     # set internal class variable _random_columns
@@ -185,9 +230,9 @@ sub insert {
 
     my $accessor;
     for (keys %{$self->random_columns}) {
-	next if defined $self->get_column($_);	# skip if defined
+        next if defined $self->get_column($_);	# skip if defined
 
-	$accessor = $self->column_info($_)->{accessor} || $_;
+        $accessor = $self->column_info($_)->{accessor} || $_;
         $self->$accessor($self->get_random_value($_));
     }
     return $self->next::method;
@@ -208,19 +253,32 @@ sub get_random_value {
     my $self   = shift;
     my $column = shift;
     my $conf = $self->random_columns->{$column}
-	or $self->throw_exception(qq{column "$column" is not a random column});
-    my ($set, $size, $check) = @$conf;
+        or $self->throw_exception(qq{column "$column" is not a random column});
+    my $check = $conf->{check};
+    my $tries = $self->max_dup_checks;
     my $id;
 
-    my $tries = $self->max_dup_checks;
-    do { # check uniqueness if check => 1 for this column
-	$id = '';
-	# random id is as good as Perl's rand()
-	$id .= $set->[int(rand(@$set))] for (1 .. $size);
-    } while ($check and $tries-- and $self->result_source->resultset->search({$column => $id})->count);
+    if ($conf->{max}) {
+        # it's an integer column
+        do { # check uniqueness if check => 1 for this column
+            $id = int(rand($conf->{max} - $conf->{min} + 1)) + $conf->{min}
+        } while $check and
+                $tries-- and
+                $self->result_source->resultset->search({$column => $id})->count;
+    }
+    else {
+        my $set = $conf->{set};
+        do { # check uniqueness if check => 1 for this column
+            $id = '';
+            # random id is as good as Perl's rand()
+            $id .= $set->[int(rand(@$set))] for (1 .. $conf->{size});
+        } while $check and
+                $tries-- and
+                $self->result_source->resultset->search({$column => $id})->count;
+    }
 
     $self->throw_exception("escaped from busy loop in DBIx::Class::RandomColumns::get_random_column_id()")
-	unless $tries;
+        unless $tries;
 
     return $id;
 }
@@ -261,7 +319,11 @@ on your bug as I make changes.
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2008 Bernhard Graf.
+Copyright 2008 - 2011 Bernhard Graf.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
+
+=cut
+
+# vim: set tabstop=4 shiftwidth=4 expandtab shiftround:

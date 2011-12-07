@@ -1,3 +1,9 @@
+0.004000	2011-12-07
+
+- Fixing failing test with DBD::SQLite 1.34_02 ff.
+- Backward incompatible change: integer fields now actually get integer
+  random numbers instead of strings of digits.
+
 0.003001	2008-11-12
 
 - minor documentation fix
