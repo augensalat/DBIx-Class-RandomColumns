@@ -3,7 +3,7 @@ package DBIx::Class::RandomColumns;
 use strict;
 use warnings;
 
-our $VERSION = '0.004000';
+our $VERSION = '0.005000';
 
 use DBIx::Class 0.08009;
 
@@ -100,6 +100,37 @@ sub add_columns {
     $class->random_columns(@random_columns);
 
     return;	# nothing
+}
+
+=head2 remove_column
+
+Hooks into L<DBIx::Class::ResultSource/remove_column> to remove the
+random column configuration for the given column.
+
+=cut
+
+sub remove_column {
+    my $class = shift;
+
+    delete $class->random_columns->{$_[0]};
+
+    return $class->next::method(@_);
+}
+
+=head2 remove_columns
+
+Hooks into L<DBIx::Class::ResultSource/remove_columns> to remove the
+random column configuration for the given columns.
+
+=cut
+
+sub remove_columns {
+    my $class = shift;
+    my $random_columns = $class->random_columns;
+
+    delete $random_columns->{$_} for @_;
+
+    return $class->next::method(@_);
 }
 
 =head2 random_columns
@@ -219,9 +250,8 @@ sub random_columns {
 
 =head2 insert
 
-Hooks into L<DBIx::Class::Row::insert()|DBIx::Class::Row/insert> to create
-a random value for each L<random column|/random_columns> that is not
-defined.
+Hooks into L<DBIx::Class::Row/insert> to create a random value for each
+L<random column|/random_columns> that is not defined.
 
 =cut
 

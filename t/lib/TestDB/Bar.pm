@@ -48,6 +48,10 @@ __PACKAGE__->add_columns(
         extra => {unsigned => 1},
         is_random => {min => -5, max => 3},
     },
+    number6 => {
+        data_type => 'int',
+        is_random => {min => -2**16, max => 2**16-1},
+    },
     string3 => {
         data_type => 'varchar',
         is_nullable => 0,
@@ -65,9 +69,23 @@ __PACKAGE__->add_columns(
         is_nullable => 1,
         size => 32,
     },
+    string6 => {
+        data_type => 'varchar',
+        size => 100,
+        is_random => 1,
+    },
+    string7 => {
+        data_type => 'varchar',
+        is_nullable => 1,
+        size => 255,
+        is_random => 1,
+    },
 );
 
 __PACKAGE__->set_primary_key('id');
 __PACKAGE__->add_unique_constraint(['string5']);
+
+__PACKAGE__->remove_columns(qw(string6 number6));
+__PACKAGE__->remove_column('string7');
 
 1;

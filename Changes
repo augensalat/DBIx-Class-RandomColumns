@@ -1,3 +1,7 @@
+0.005000	2011-12-08
+
+- Bug fix: #44013
+
 0.004000	2011-12-07
 
 - Fixing failing test with DBD::SQLite 1.34_02 ff.
