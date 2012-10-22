@@ -1,3 +1,8 @@
+0.005001	2012-10-22
+
+- Rebuild dist with Module::Install 1.06:
+  http://weblog.bulknews.net/post/33907905561
+
 0.005000	2011-12-08
 
 - Bug fix: #44013
